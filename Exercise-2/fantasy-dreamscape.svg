@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="200 0 800 800">
+  <defs>
+    <linearGradient id="sky" x2="0" y2="1">
+      <stop stop-color="#101536"/>
+      <stop offset=".52" stop-color="#493778"/>
+      <stop offset="1" stop-color="#f28b91"/>
+    </linearGradient>
+    <linearGradient id="water" x2="0" y2="1">
+      <stop stop-color="#715e9b"/>
+      <stop offset="1" stop-color="#18264c"/>
+    </linearGradient>
+    <linearGradient id="castle" x2="0" y2="1">
+      <stop stop-color="#f7d8c6"/>
+      <stop offset="1" stop-color="#9b7caa"/>
+    </linearGradient>
+    <radialGradient id="moon">
+      <stop stop-color="#fffbe0"/>
+      <stop offset=".78" stop-color="#ffd6a2"/>
+      <stop offset="1" stop-color="#ffc98e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="800" fill="url(#sky)"/>
+  <circle cx="900" cy="170" r="105" fill="url(#moon)"/>
+  <g fill="#fff3d4">
+    <circle cx="100" cy="112" r="2"/><circle cx="208" cy="185" r="2"/>
+    <circle cx="340" cy="83" r="2"/><circle cx="470" cy="151" r="1.8"/>
+    <circle cx="580" cy="70" r="2"/><circle cx="730" cy="115" r="1.7"/>
+    <circle cx="1050" cy="94" r="2"/><circle cx="1124" cy="230" r="1.7"/>
+    <circle cx="160" cy="280" r="1.8"/><circle cx="665" cy="225" r="1.5"/>
+    <circle cx="1010" cy="315" r="1.8"/><circle cx="300" cy="250" r="1.5"/>
+  </g>
+  <g fill="none" stroke="#f8dfc7" stroke-width="2" opacity=".8">
+    <path d="M92 218q18-18 36 0q-18 18-36 0z"/>
+    <path d="M108 218q18-18 36 0q-18 18-36 0z"/>
+    <path d="M1000 380q17-17 34 0q-17 17-34 0z"/>
+    <path d="M1015 380q17-17 34 0q-17 17-34 0z"/>
+  </g>
+  <path d="M0 500 145 355l100 110 155-180 170 215 145-155 160 175 130-185 195 175v290H0z" fill="#554876" opacity=".72"/>
+  <path d="M0 565 175 440l125 125 165-190 165 195 150-120 150 140 135-145 135 120v235H0z" fill="#34375f"/>
+  <path d="M0 612q180-42 350 0t350 0 500 0v188H0z" fill="url(#water)"/>
+  <g fill="none" stroke="#e9b6bd" opacity=".34">
+    <path d="M0 660q150 18 300 0t300 0 300 0 300 0"/>
+    <path d="M60 704q130-15 260 0t260 0 260 0 260 0"/>
+    <path d="M180 755q120 13 240 0t240 0 240 0"/>
+  </g>
+  <ellipse cx="590" cy="568" rx="220" ry="25" fill="#ffd7b2" opacity=".25" filter="url(#glow)"/>
+  <g stroke="#6b587c" stroke-width="5" stroke-linejoin="round">
+    <path d="M420 560V390h65V330h46v-65h60v65h46v60h57v170z" fill="url(#castle)"/>
+    <path d="M405 393h95v-24h-95zM520 333h60v-24h-60zM630 397h78v-25h-78z" fill="#d2a9b5"/>
+    <path d="M414 393l38-55 38 55M520 333l30-54 30 54M626 397l39-53 43 53" fill="#bd879e"/>
+    <path d="M545 560V472q0-34 28-34t28 34v88" fill="#453e69"/>
+    <path d="M448 436v37m34-37v37m63-113v34m70-34v34m43 15v37" stroke="#ffe59e" stroke-width="9" filter="url(#glow)"/>
+    <path d="M573 266v-36m-12 13h24" stroke="#f6cf9b" stroke-width="4"/>
+  </g>
+  <g fill="#ffd895" filter="url(#glow)">
+    <circle cx="322" cy="430" r="4"/><circle cx="802" cy="455" r="4"/>
+    <circle cx="755" cy="320" r="3"/><circle cx="375" cy="290" r="3"/>
+    <circle cx="860" cy="250" r="3"/><circle cx="260" cy="510" r="3"/>
+  </g>
+  <g transform="translate(170 530)" fill="#202c4e">
+    <path d="M0 42q25-24 50 0l-10 14H10z"/><path d="M18 45V16h4v29m-4-25-10 9 2 3 8-7m4 0 10 8-2 3-8-6"/>
+  </g>
+  <g fill="#f3bd9e">
+    <circle cx="100" cy="455" r="3"/><circle cx="1100" cy="520" r="3"/>
+  </g>
+</svg>
