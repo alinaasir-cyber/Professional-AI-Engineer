@@ -1,0 +1,113 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Movie {
+  id          Int      @id @default(autoincrement())
+  title       String
+  year        Int
+  genre       String
+  rating      Float
+  director    String
+  description String   @db.Text
+  createdAt   DateTime @default(now())
+
+  reviews     Review[]
+
+  @@index([genre])
+  @@index([rating])
+  @@index([title])
+}
+
+model User {
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  age            Int
+  favorite_genre String
+  createdAt      DateTime @default(now())
+
+  reviews        Review[]
+
+  @@index([age])
+  @@index([favorite_genre])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  movie_id  Int
+  user_id   Int
+  rating    Float
+  comment   String   @db.Text
+  date      DateTime @default(now())
+
+  movie     Movie    @relation(fields: [movie_id], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([movie_id])
+  @@index([user_id])
+}
+
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  role      String   // 'user' | 'assistant' | 'system'
+  content   String   @db.Text
+  toolCalls Json?    // tool calls if any
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model CachedMovie {
+  id          String   @id @default(cuid())
+  imdbID      String?  @unique
+  title       String
+  year        String
+  genre       String?
+  director    String?
+  actors      String?
+  plot        String?  @db.Text
+  poster      String?  @db.Text
+  ratings     Json?
+  runtime     String?
+  cachedAt    DateTime @default(now())
+
+  @@index([title])
+  @@index([genre])
+}
+
+model CachedJoke {
+  id        String   @id @default(cuid())
+  externalId String  @unique
+  joke      String   @db.Text
+  category  String   @default("dad")
+  votesUp   Int      @default(0)
+  votesDown Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([category])
+}
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model ToolUsage {
+  id              String   @id @default(cuid())
+  toolName        String
+  inputQuery      String   @db.Text
+  success         Boolean  @default(true)
+  executionTimeMs Int?
+  createdAt       DateTime @default(now())
+
+  @@index([toolName])
+  @@index([createdAt])
+}
