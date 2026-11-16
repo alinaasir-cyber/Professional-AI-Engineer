@@ -15,73 +15,125 @@ export interface ChatResponse {
   toolCalls?: ToolCallExecution[];
 }
 
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
 const GEMINI_API_KEY =
   process.env.GEMINI_API_KEY ||
   process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
   '';
 
-// Call Gemini API for real natural conversation (e.g. "hi", "how are you", "who are you", general chat)
-async function generateNaturalConversation(prompt: string, history: Array<{ role: string; content: string }>): Promise<string> {
-  try {
-    const formattedContents = history.slice(-6).map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
+// Natural conversation powered by OpenRouter Free Models & Gemini
+async function generateNaturalConversation(
+  prompt: string,
+  history: Array<{ role: string; content: string }>
+): Promise<string> {
+  // 1. Try OpenRouter Free Models (NVIDIA Nemotron / Auto-free router)
+  if (OPENROUTER_API_KEY) {
+    try {
+      const messages = [
+        {
+          role: 'system',
+          content:
+            'You are a friendly, intelligent AI assistant named "AI Chatbot". ' +
+            'You can speak both English and Somali fluently and warmly. ' +
+            'You have 3 specialized tools: ' +
+            '1. Database Chat Tool (Neon PostgreSQL queries). ' +
+            '2. Movie Database Tool (OMDb film search). ' +
+            '3. Dad Jokes Tool (entertaining jokes with live voting). ' +
+            'Respond warmly, helpfully, and concisely.',
+        },
+        ...history.slice(-6).map((m) => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        })),
+        { role: 'user', content: prompt },
+      ];
 
-    formattedContents.push({
-      role: 'user',
-      parts: [{ text: prompt }],
-    });
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
-      {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'AI Chatbot',
+        },
         body: JSON.stringify({
-          system_instruction: {
-            parts: [
-              {
-                text:
-                  'You are a friendly, intelligent AI assistant in an AI Engineer showcase app. ' +
-                  'You can speak both English and Somali fluently. You are warm, helpful, and natural. ' +
-                  'You also have 3 specialized tools: ' +
-                  '1. Database Chat Tool (queries movies, users, reviews on Neon PostgreSQL). ' +
-                  '2. Movie Database Tool (searches OMDb with posters, cast, ratings). ' +
-                  '3. Dad Jokes Tool (fetches jokes with up/down voting). ' +
-                  'If the user greets you or just wants to chat, respond naturally and warmly, and let them know you are happy to talk or help them with the tools.',
-              },
-            ],
-          },
-          contents: formattedContents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500,
-          },
+          model: 'openrouter/free',
+          messages,
+          temperature: 0.7,
         }),
         signal: AbortSignal.timeout(8000),
-      }
-    );
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-        return data.candidates[0].content.parts[0].text;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.choices && data.choices[0]?.message?.content) {
+          return data.choices[0].message.content;
+        }
       }
+    } catch (err) {
+      console.warn('OpenRouter fetch fallback:', err);
     }
-  } catch (err) {
-    console.warn('Gemini chat fallback:', err);
   }
 
-  // Graceful conversational fallback if network timeout occurs
+  // 2. Fallback to Google Gemini
+  if (GEMINI_API_KEY) {
+    try {
+      const formattedContents = history.slice(-6).map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+      formattedContents.push({
+        role: 'user',
+        parts: [{ text: prompt }],
+      });
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [
+                {
+                  text:
+                    'You are a friendly, intelligent AI assistant. ' +
+                    'You can speak both English and Somali fluently. ' +
+                    'Be warm, helpful, and natural.',
+                },
+              ],
+            },
+            contents: formattedContents,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 500,
+            },
+          }),
+          signal: AbortSignal.timeout(8000),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
+          return data.candidates[0].content.parts[0].text;
+        }
+      }
+    } catch (err) {
+      console.warn('Gemini chat fallback:', err);
+    }
+  }
+
+  // 3. Graceful fallback
   const p = prompt.toLowerCase();
   if (p.includes('hi') || p.includes('hello') || p.includes('hey') || p.includes('assalamu')) {
-    return "Hello! 👋 Great to meet you! Yes, you can talk to me normally about anything. You can also ask me to query our movies database, search any film with OMDb, or tell you a funny joke. How can I help you today?";
+    return 'Hello! 👋 Great to meet you! How can I help you today? Feel free to chat with me or ask about movies, database queries, and jokes.';
   }
   if (p.includes('want to talk') || p.includes('talking to you') || p.includes('chat')) {
-    return "I'm right here and happy to chat with you! 😊 What's on your mind? We can have a regular conversation, or explore any movie, database query, or jokes whenever you'd like.";
+    return "I'm right here and happy to chat with you! 😊 What's on your mind?";
   }
-  return "I'm here to chat with you! Feel free to ask me anything, or explore our database, movies, and jokes tools.";
+  return "I'm here to assist you! Feel free to ask me anything, or explore our database, movies, and jokes tools.";
 }
 
 export async function processUserMessage(message: string): Promise<ChatResponse> {
@@ -111,7 +163,12 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
     lower.includes('programming joke')
   ) {
     let category: 'dad' | 'programming' | 'general' = 'dad';
-    if (lower.includes('programming') || lower.includes('code') || lower.includes('developer') || lower.includes('computer')) {
+    if (
+      lower.includes('programming') ||
+      lower.includes('code') ||
+      lower.includes('developer') ||
+      lower.includes('computer')
+    ) {
       category = 'programming';
     } else if (lower.includes('general')) {
       category = 'general';
@@ -139,9 +196,23 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
 
   // B. Movie Database Tool (OMDb search, movie details, cast, poster)
   else if (
-    (lower.includes('movie') || lower.includes('film') || lower.includes('actor') || lower.includes('plot') || lower.includes('imdb') || lower.includes('omdb')) &&
-    (lower.includes('search') || lower.includes('tell me about') || lower.includes('details') || lower.includes('who directed') || lower.includes('poster') || lower.match(/\b(in|of|for)\s+([a-zA-Z0-9\s]+)/))
-    && !lower.includes('user') && !lower.includes('table') && !lower.includes('schema') && !lower.includes('count total') && !lower.includes('rating above')
+    (lower.includes('movie') ||
+      lower.includes('film') ||
+      lower.includes('actor') ||
+      lower.includes('plot') ||
+      lower.includes('imdb') ||
+      lower.includes('omdb')) &&
+    (lower.includes('search') ||
+      lower.includes('tell me about') ||
+      lower.includes('details') ||
+      lower.includes('who directed') ||
+      lower.includes('poster') ||
+      lower.match(/\b(in|of|for)\s+([a-zA-Z0-9\s]+)/)) &&
+    !lower.includes('user') &&
+    !lower.includes('table') &&
+    !lower.includes('schema') &&
+    !lower.includes('count total') &&
+    !lower.includes('rating above')
   ) {
     let title = message
       .replace(/search movie/i, '')
@@ -178,8 +249,20 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
 
   // C. Database Chat Tool (Text to SQL for Movies, Users, Reviews)
   else if (
-    (lower.includes('show') || lower.includes('find') || lower.includes('count') || lower.includes('list') || lower.startsWith('select')) &&
-    (lower.includes('movie') || lower.includes('film') || lower.includes('user') || lower.includes('review') || lower.includes('genre') || lower.includes('rating') || lower.includes('table') || lower.includes('sql') || lower.includes('database'))
+    (lower.includes('show') ||
+      lower.includes('find') ||
+      lower.includes('count') ||
+      lower.includes('list') ||
+      lower.startsWith('select')) &&
+    (lower.includes('movie') ||
+      lower.includes('film') ||
+      lower.includes('user') ||
+      lower.includes('review') ||
+      lower.includes('genre') ||
+      lower.includes('rating') ||
+      lower.includes('table') ||
+      lower.includes('sql') ||
+      lower.includes('database'))
   ) {
     const dbRes = await executeDatabaseQuery(message);
     toolCalls.push({
@@ -195,7 +278,7 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
     }
   }
 
-  // D. General Natural Conversation (Powered by Gemini AI)
+  // D. General Natural Conversation (Powered by OpenRouter Free Models & Gemini)
   else {
     responseText = await generateNaturalConversation(message, history);
   }
