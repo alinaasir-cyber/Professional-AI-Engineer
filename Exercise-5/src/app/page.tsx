@@ -23,11 +23,14 @@ import {
   LogIn,
   LogOut,
   User as UserIcon,
-  X,
+  ShieldCheck,
+  Zap,
   CheckCircle2,
+  ArrowRight,
+  Loader2,
 } from 'lucide-react';
 
-function GoogleIcon({ className = "w-4 h-4" }: { className?: string }) {
+function GoogleIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24">
       <path
@@ -79,17 +82,20 @@ interface AuthUser {
 }
 
 export default function Home() {
+  // Authentication & Initial State
+  const [authChecking, setAuthChecking] = useState(true);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Chat State
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [currentConvId, setCurrentConvId] = useState<string | null>(null);
   const [currentConvTitle, setCurrentConvTitle] = useState('New Conversation');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Authentication State
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authEmail, setAuthEmail] = useState('');
-  const [authName, setAuthName] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -97,28 +103,33 @@ export default function Home() {
   const [jokeVotes, setJokeVotes] = useState<Record<string, { up: number; down: number; userVoted?: 'up' | 'down' }>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch session & conversations on mount
+  // Check session on mount
   useEffect(() => {
     checkSession();
-    fetchConversations();
   }, []);
 
   const checkSession = async () => {
     try {
+      setAuthChecking(true);
       const res = await fetch('/api/auth/session');
       const data = await res.json();
       if (data.authenticated && data.user) {
         setCurrentUser(data.user);
+        fetchConversations();
       } else {
         setCurrentUser(null);
       }
     } catch (e) {
-      console.warn('Failed to load session:', e);
+      console.warn('Session check warning:', e);
+      setCurrentUser(null);
+    } finally {
+      setAuthChecking(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setAuthLoading(true);
+    setAuthError(null);
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
@@ -133,20 +144,25 @@ export default function Home() {
       const data = await res.json();
       if (data.success && data.user) {
         setCurrentUser(data.user);
-        setAuthModalOpen(false);
         fetchConversations();
+      } else {
+        setAuthError(data.error || 'Google sign in failed');
       }
-    } catch (err) {
-      console.error('Google Sign-in error:', err);
+    } catch (err: any) {
+      setAuthError(err.message || 'Network error during sign in');
     } finally {
       setAuthLoading(false);
     }
   };
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authEmail.trim()) return;
+    if (!authEmail.trim()) {
+      setAuthError('Fadlan geli email-kaaga.');
+      return;
+    }
     setAuthLoading(true);
+    setAuthError(null);
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
@@ -160,13 +176,14 @@ export default function Home() {
       const data = await res.json();
       if (data.success && data.user) {
         setCurrentUser(data.user);
-        setAuthModalOpen(false);
         setAuthEmail('');
         setAuthName('');
         fetchConversations();
+      } else {
+        setAuthError(data.error || 'Failed to authenticate');
       }
-    } catch (err) {
-      console.error('Email Sign-in error:', err);
+    } catch (err: any) {
+      setAuthError(err.message || 'Network error');
     } finally {
       setAuthLoading(false);
     }
@@ -177,9 +194,9 @@ export default function Home() {
       await fetch('/api/auth/signout', { method: 'POST' });
       setCurrentUser(null);
       handleNewChat();
-      fetchConversations();
+      setConversations([]);
     } catch (err) {
-      console.error('Sign-out error:', err);
+      console.error('Sign out error:', err);
     }
   };
 
@@ -228,7 +245,7 @@ export default function Home() {
 
   const handleDeleteConversation = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!confirm('Are you sure you want to delete this chat?')) return;
+    if (!confirm('Ma hubtaa inaad tirtirto wadahadalkan?')) return;
     try {
       await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
       setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -300,7 +317,7 @@ export default function Home() {
         {
           id: `error-${Date.now()}`,
           role: 'assistant',
-          content: `⚠️ Error: Could not get a response (${err.message}). Please retry.`,
+          content: `⚠️ Cilad: Jawaab laguma guuleysan (${err.message}). Fadlan dib u tijaabi.`,
           error: true,
         },
       ]);
@@ -345,6 +362,255 @@ export default function Home() {
     document.body.removeChild(a);
   };
 
+  // -------------------------------------------------------------
+  // VIEW 1: Loading State during Auth Check
+  // -------------------------------------------------------------
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-slate-800">
+        <div className="w-14 h-14 rounded-2xl bg-sky-500 text-white flex items-center justify-center shadow-md mb-4 animate-pulse">
+          <Bot className="w-8 h-8" />
+        </div>
+        <div className="flex items-center space-x-2 text-sky-600 font-semibold text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Fadlan sug, nidaamka ayaa furmaya...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // VIEW 2: Dedicated Auth & Registration Landing Page (Protected)
+  // Visible ONLY when user is NOT logged in!
+  // -------------------------------------------------------------
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-sky-50/70 via-white to-sky-100/50 flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+        {/* Navigation Bar */}
+        <header className="border-b border-sky-100 bg-white/80 backdrop-blur-md px-6 py-4">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                AI
+              </div>
+              <div>
+                <span className="font-extrabold text-base text-slate-900 tracking-tight">AI Tools Studio</span>
+                <span className="text-[10px] ml-2 font-semibold bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full uppercase">
+                  Pro Edition
+                </span>
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-500 font-medium">
+              Ma leedahay koonto?{' '}
+              <button
+                onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                className="text-sky-600 hover:text-sky-700 font-bold underline ml-1"
+              >
+                {authMode === 'signin' ? 'Is-diiwaangeli (Sign Up)' : 'Soo Gal (Sign In)'}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Hero & Authentication Section */}
+        <main className="flex-1 flex items-center justify-center p-6 sm:p-12">
+          <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            {/* Left Column: Platform Features & Branding */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-100/80 border border-sky-200 text-sky-700 text-xs font-semibold">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Multi-Tool AI Assistant</span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                Wadahadal AI oo leh{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600">
+                  Database SQL, Movies & Flux Images
+                </span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                Ku soo dhawoow barxadda casriga ah ee AI-da. Si aad u bilowdo wada-sheekeysiga, u keydiso fadhiyadaada,
+                una isticmaasho awoodda 4-ta aaladood, fadlan marka hore koontadaada gal ama is-diiwaangeli.
+              </p>
+
+              {/* Feature Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                <div className="bg-white/90 border border-sky-100 p-3.5 rounded-2xl shadow-2xs hover:border-sky-300 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center mb-2">
+                    <Database className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900">Neon PostgreSQL Chat</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Xog-raadinta database-ka adoo isticmaalaya luuqadda caadiga ah.</p>
+                </div>
+
+                <div className="bg-white/90 border border-sky-100 p-3.5 rounded-2xl shadow-2xs hover:border-sky-300 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center mb-2">
+                    <ImageIcon className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900">Flux AI Text-to-Image</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Sawirro tayo sare leh ku samee af-Soomaali ama Ingiriis.</p>
+                </div>
+
+                <div className="bg-white/90 border border-sky-100 p-3.5 rounded-2xl shadow-2xs hover:border-sky-300 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center mb-2">
+                    <Film className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900">OMDb Movie Finder</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Xogta filimada caalamiga ah, IMDb rating, iyo jilayaasha.</p>
+                </div>
+
+                <div className="bg-white/90 border border-sky-100 p-3.5 rounded-2xl shadow-2xs hover:border-sky-300 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center mb-2">
+                    <Smile className="w-4 h-4" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900">Dad Jokes & Voting</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Sheekooyin qosol leh iyo u codeynta tooska ah.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Professional Authentication Form Card */}
+            <div className="lg:col-span-5">
+              <div className="bg-white border border-sky-200/80 rounded-3xl p-6 sm:p-8 shadow-xl shadow-sky-100/50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-400/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
+
+                {/* Form Header Tabs */}
+                <div className="flex border-b border-slate-100 pb-3 mb-6">
+                  <button
+                    onClick={() => { setAuthMode('signin'); setAuthError(null); }}
+                    className={`flex-1 text-center py-2 text-xs font-bold transition-all relative ${
+                      authMode === 'signin' ? 'text-sky-600' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    Soo Gal (Sign In)
+                    {authMode === 'signin' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-500 rounded-full" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setAuthMode('signup'); setAuthError(null); }}
+                    className={`flex-1 text-center py-2 text-xs font-bold transition-all relative ${
+                      authMode === 'signup' ? 'text-sky-600' : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    Is-diiwaangeli (Sign Up)
+                    {authMode === 'signup' && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-500 rounded-full" />
+                    )}
+                  </button>
+                </div>
+
+                {authError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600">
+                    {authError}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {/* Google Sign In Button */}
+                  <button
+                    onClick={handleGoogleSignIn}
+                    disabled={authLoading}
+                    className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium text-xs border border-slate-200 hover:border-slate-300 transition-all shadow-2xs hover:shadow-xs group disabled:opacity-50"
+                  >
+                    <GoogleIcon className="w-4 h-4 flex-none group-hover:scale-105 transition-transform" />
+                    <span>Ku Gal Google (Sign in with Google)</span>
+                  </button>
+
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t border-slate-100" />
+                    <span className="flex-shrink mx-3 text-[11px] text-slate-400 font-medium uppercase">
+                      ama email ku gal
+                    </span>
+                    <div className="flex-grow border-t border-slate-100" />
+                  </div>
+
+                  {/* Email & Name Form */}
+                  <form onSubmit={handleEmailAuth} className="space-y-3.5">
+                    {authMode === 'signup' && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                          Magacaaga (Full Name)
+                        </label>
+                        <input
+                          type="text"
+                          value={authName}
+                          onChange={(e) => setAuthName(e.target.value)}
+                          placeholder="Abdi Naasir"
+                          className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        placeholder="cnaasirm60@gmail.com"
+                        className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={authLoading || !authEmail.trim()}
+                      className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      {authLoading ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Fadlan sug...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>{authMode === 'signin' ? 'Soo Gal' : 'Is-diiwaangeli oo Gal'}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {/* 1-Click Fast Demo Login for quick testing */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <button
+                      onClick={handleGoogleSignIn}
+                      disabled={authLoading}
+                      className="w-full flex items-center justify-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 bg-sky-50/80 hover:bg-sky-100/80 py-2 rounded-xl font-medium transition-colors border border-sky-100"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Ku gal akoonkaaga: <b>Abdi Naasir</b></span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Xogtaadu waa mid ammaan ah • Neon PostgreSQL</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-sky-100 bg-white/60 py-4 px-6 text-center text-xs text-slate-500">
+          Professional AI Engineer Track • Exercise #5: AI Tools Application
+        </footer>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // VIEW 3: Full AI Chatbot Experience (Sky-Blue Theme)
+  // Visible ONLY when user IS LOGGED IN!
+  // -------------------------------------------------------------
   return (
     <div className="flex h-screen max-h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
       {/* 1. Left Collapsible Sidebar */}
@@ -356,7 +622,7 @@ export default function Home() {
         {/* Sidebar Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+            <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
               AI
             </div>
             <span className="font-bold text-sm text-slate-900 tracking-tight">AI Chatbot</span>
@@ -374,9 +640,9 @@ export default function Home() {
         <div className="p-3">
           <button
             onClick={handleNewChat}
-            className="w-full flex items-center gap-2.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 px-4 py-2.5 rounded-full font-medium text-xs border border-slate-200 hover:border-rose-200 transition-all shadow-2xs group"
+            className="w-full flex items-center gap-2.5 bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-sky-600 px-4 py-2.5 rounded-full font-medium text-xs border border-slate-200 hover:border-sky-200 transition-all shadow-2xs group"
           >
-            <Plus className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+            <Plus className="w-4 h-4 text-sky-500 group-hover:scale-110 transition-transform" />
             <span>New chat</span>
           </button>
         </div>
@@ -397,12 +663,12 @@ export default function Home() {
                 onClick={() => loadConversation(conv.id, conv.title)}
                 className={`group flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-colors ${
                   currentConvId === conv.id
-                    ? 'bg-rose-50 text-rose-700 font-medium'
+                    ? 'bg-sky-50 text-sky-700 font-medium'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
-                  <MessageSquare className="w-3.5 h-3.5 flex-none opacity-60" />
+                  <MessageSquare className="w-3.5 h-3.5 flex-none opacity-60 text-sky-500" />
                   <span className="truncate">{conv.title}</span>
                 </div>
                 <button
@@ -417,49 +683,37 @@ export default function Home() {
           )}
         </div>
 
-        {/* User Account / Auth Section at Sidebar Bottom */}
+        {/* User Account / Profile Section at Sidebar Bottom */}
         <div className="p-3 border-t border-slate-100 bg-slate-50/70">
-          {currentUser ? (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                {currentUser.image ? (
-                  <img
-                    src={currentUser.image}
-                    alt={currentUser.name || 'User'}
-                    className="w-8 h-8 rounded-full border border-slate-200 object-cover flex-none"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-xs flex-none shadow-2xs">
-                    {(currentUser.name || currentUser.email || 'U')[0].toUpperCase()}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 truncate">
-                    {currentUser.name || 'User'}
-                  </p>
-                  <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              {currentUser.image ? (
+                <img
+                  src={currentUser.image}
+                  alt={currentUser.name || 'User'}
+                  className="w-8 h-8 rounded-full border border-sky-200 object-cover flex-none"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-xs flex-none shadow-2xs">
+                  {(currentUser.name || currentUser.email || 'U')[0].toUpperCase()}
                 </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-800 truncate">
+                  {currentUser.name || 'User'}
+                </p>
+                <p className="text-[10px] text-slate-400 truncate">{currentUser.email}</p>
               </div>
+            </div>
 
-              <button
-                onClick={handleSignOut}
-                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors flex-none"
-                title="Sign out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <button
-                onClick={() => setAuthModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 text-slate-700 px-3 py-2 rounded-xl text-xs font-medium border border-slate-200 transition-all shadow-2xs"
-              >
-                <GoogleIcon className="w-4 h-4 flex-none" />
-                <span>Sign in with Google</span>
-              </button>
-            </div>
-          )}
+            <button
+              onClick={handleSignOut}
+              className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors flex-none"
+              title="Ka bax (Sign out)"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -475,17 +729,17 @@ export default function Home() {
                   className="text-slate-500 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors mr-1"
                   title="Open Sidebar"
                 >
-                  <PanelLeft className="w-5 h-5 text-rose-500" />
+                  <PanelLeft className="w-5 h-5 text-sky-500" />
                 </button>
               )}
-              <div className="w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shadow-sm flex-none">
+              <div className="w-9 h-9 rounded-full bg-sky-500 text-white flex items-center justify-center font-bold text-sm shadow-sm flex-none">
                 AI
               </div>
               <div className="min-w-0">
                 <h1 className="font-bold text-base text-slate-900 leading-none truncate max-w-[180px] sm:max-w-md">
                   {currentConvTitle}
                 </h1>
-                <p className="text-xs text-rose-500 font-medium mt-1">
+                <p className="text-xs text-sky-500 font-medium mt-1">
                   Chat with AI Assistant
                 </p>
               </div>
@@ -494,48 +748,36 @@ export default function Home() {
             <div className="flex items-center space-x-2 sm:space-x-3">
               <button
                 onClick={handleNewChat}
-                className="text-xs border border-slate-200 hover:border-rose-300 text-slate-700 hover:text-rose-600 px-3.5 py-1.5 rounded-full font-medium transition-colors shadow-2xs flex items-center gap-1.5"
+                className="text-xs border border-slate-200 hover:border-sky-300 text-slate-700 hover:text-sky-600 px-3.5 py-1.5 rounded-full font-medium transition-colors shadow-2xs flex items-center gap-1.5"
                 title="Start a new chat"
               >
-                <Plus className="w-3.5 h-3.5 text-rose-500" />
+                <Plus className="w-3.5 h-3.5 text-sky-500" />
                 <span className="hidden sm:inline">New Chat</span>
               </button>
 
               <button
                 onClick={handleNewChat}
-                className="text-xs border border-rose-200 text-rose-600 hover:bg-rose-50 px-3.5 py-1.5 rounded-full font-medium transition-colors shadow-2xs flex items-center gap-1.5"
+                className="text-xs border border-sky-200 text-sky-600 hover:bg-sky-50 px-3.5 py-1.5 rounded-full font-medium transition-colors shadow-2xs flex items-center gap-1.5"
                 title="Reset Conversation"
               >
                 <RotateCcw className="w-3 h-3" />
                 <span>Reset</span>
               </button>
 
-              {/* Sign In / Sign Out Button in Header */}
-              {currentUser ? (
-                <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-                  <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-700 font-medium">
-                    <span className="truncate max-w-[120px]">{currentUser.name || currentUser.email}</span>
-                  </div>
-                  <button
-                    onClick={handleSignOut}
-                    className="text-xs bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 border border-slate-200 hover:border-red-200"
-                    title="Sign out"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Sign Out</span>
-                  </button>
+              {/* Sign Out Button in Header */}
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+                <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-700 font-medium">
+                  <span className="truncate max-w-[120px]">{currentUser.name || currentUser.email}</span>
                 </div>
-              ) : (
-                <div className="pl-2 border-l border-slate-200">
-                  <button
-                    onClick={() => setAuthModalOpen(true)}
-                    className="text-xs bg-rose-500 hover:bg-rose-600 text-white px-3.5 py-1.5 rounded-full font-medium transition-colors shadow-2xs flex items-center gap-1.5"
-                  >
-                    <LogIn className="w-3.5 h-3.5" />
-                    <span>Sign In</span>
-                  </button>
-                </div>
-              )}
+                <button
+                  onClick={handleSignOut}
+                  className="text-xs bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 border border-slate-200 hover:border-red-200"
+                  title="Ka bax (Sign out)"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -544,9 +786,9 @@ export default function Home() {
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
           <div className="max-w-4xl mx-auto space-y-6">
             {messages.length === 0 ? (
-              /* Empty State - Course video style */
+              /* Empty State - Sky Blue Robot Badge */
               <div className="h-full min-h-[55vh] flex flex-col items-center justify-center text-center p-6">
-                <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-4 shadow-sm text-rose-500">
+                <div className="w-14 h-14 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center mb-4 shadow-sm text-sky-500">
                   <Bot className="w-7 h-7" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -559,22 +801,22 @@ export default function Home() {
             ) : (
               messages.map((m) => (
                 <div key={m.id} className="space-y-4">
-                  {/* User Bubble - Course style: Rose/Pink pill on the right */}
+                  {/* User Bubble - Sky Blue Pill on the right */}
                   {m.role === 'user' && (
                     <div className="flex justify-end items-end space-x-2">
-                      <div className="bg-rose-500 text-white px-5 py-2.5 rounded-3xl rounded-br-xs text-sm max-w-lg shadow-sm font-normal">
+                      <div className="bg-sky-500 text-white px-5 py-2.5 rounded-3xl rounded-br-xs text-sm max-w-lg shadow-sm font-normal">
                         {m.content}
                       </div>
-                      <div className="w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center font-bold text-xs flex-none shadow-xs">
+                      <div className="w-7 h-7 rounded-full bg-sky-600 text-white flex items-center justify-center font-bold text-xs flex-none shadow-xs">
                         {currentUser?.name ? currentUser.name[0].toUpperCase() : 'U'}
                       </div>
                     </div>
                   )}
 
-                  {/* Assistant Bubble - Course style: Clean white container with robot avatar */}
+                  {/* Assistant Bubble - Sky Blue Robot Avatar Badge */}
                   {m.role === 'assistant' && (
                     <div className="flex justify-start items-start space-x-3 max-w-3xl">
-                      <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 flex-none shadow-xs mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-500 flex-none shadow-xs mt-0.5">
                         <Bot className="w-4 h-4" />
                       </div>
                       <div className="flex-1 space-y-3">
@@ -736,15 +978,15 @@ export default function Home() {
                               </div>
                             )}
 
-                            {/* 4. Image Generator Tool Output */}
+                            {/* 4. Image Generator Tool Output (Sky Blue) */}
                             {tc.toolName === 'ImageGeneratorTool' && tc.result && tc.result.imageUrl && (
-                              <div className="bg-white border border-rose-100 rounded-xl overflow-hidden shadow-2xs">
-                                <div className="p-3 bg-rose-50/50 border-b border-rose-100 flex items-center justify-between">
+                              <div className="bg-white border border-sky-100 rounded-xl overflow-hidden shadow-2xs">
+                                <div className="p-3 bg-sky-50/60 border-b border-sky-100 flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <div className="p-1 rounded bg-rose-100 text-rose-600">
+                                    <div className="p-1 rounded bg-sky-100 text-sky-600">
                                       <ImageIcon className="w-4 h-4" />
                                     </div>
-                                    <span className="text-xs font-semibold text-rose-800 uppercase tracking-wider">
+                                    <span className="text-xs font-semibold text-sky-800 uppercase tracking-wider">
                                       Generated with Flux AI
                                     </span>
                                   </div>
@@ -752,7 +994,7 @@ export default function Home() {
                                     href={tc.result.imageUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-[11px] text-rose-600 hover:text-rose-700 flex items-center gap-1 font-medium"
+                                    className="text-[11px] text-sky-600 hover:text-sky-700 flex items-center gap-1 font-medium"
                                   >
                                     <span>Full Resolution</span>
                                     <ExternalLink className="w-3 h-3" />
@@ -774,7 +1016,7 @@ export default function Home() {
                                   </span>
                                   <button
                                     onClick={() => handleDownloadImage(tc.result.imageUrl, `ai-flux-${Date.now()}.jpg`)}
-                                    className="flex items-center gap-1 text-slate-600 hover:text-rose-600 font-medium px-2 py-1 rounded hover:bg-slate-50 transition-colors"
+                                    className="flex items-center gap-1 text-slate-600 hover:text-sky-600 font-medium px-2 py-1 rounded hover:bg-slate-50 transition-colors"
                                   >
                                     <Download className="w-3.5 h-3.5" />
                                     <span>Download</span>
@@ -794,13 +1036,13 @@ export default function Home() {
             {/* Loading Indicator */}
             {loading && (
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 flex-none animate-pulse">
+                <div className="w-8 h-8 rounded-full bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-500 flex-none animate-pulse">
                   <Bot className="w-4 h-4" />
                 </div>
                 <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-rose-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-rose-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-rose-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-sky-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-sky-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-sky-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                   <span className="text-xs text-slate-400 ml-1">AI is thinking...</span>
                 </div>
               </div>
@@ -813,7 +1055,7 @@ export default function Home() {
         {/* Footer / Input Bar */}
         <footer className="flex-none border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 sm:px-8 shadow-sm">
           <div className="max-w-4xl mx-auto">
-            {/* Input Form with Plus button, Input pill, and Send button */}
+            {/* Input Form with Plus button, Input pill, and Send button (No N avatar, No quick prompts) */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -825,7 +1067,7 @@ export default function Home() {
                 type="button"
                 onClick={() => handleSendMessage('Generate image of a cute kitten playing with a ball')}
                 title="Quick image generator"
-                className="w-9 h-9 rounded-full border border-slate-300 text-slate-500 hover:text-rose-600 hover:border-rose-300 flex items-center justify-center flex-none transition-colors"
+                className="w-9 h-9 rounded-full border border-slate-300 text-slate-500 hover:text-sky-600 hover:border-sky-300 flex items-center justify-center flex-none transition-colors"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -837,14 +1079,14 @@ export default function Home() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Type your message..."
                   disabled={loading}
-                  className="w-full bg-white border border-rose-300 rounded-full px-5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all shadow-2xs disabled:opacity-50"
+                  className="w-full bg-white border border-sky-300 rounded-full px-5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-2xs disabled:opacity-50"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={!input.trim() || loading}
-                className="w-10 h-10 rounded-full bg-rose-500 hover:bg-rose-600 disabled:bg-slate-200 disabled:text-slate-400 text-white flex items-center justify-center transition-all shadow-sm flex-none disabled:shadow-none"
+                className="w-10 h-10 rounded-full bg-sky-500 hover:bg-sky-600 disabled:bg-slate-200 disabled:text-slate-400 text-white flex items-center justify-center transition-all shadow-sm flex-none disabled:shadow-none"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -852,90 +1094,6 @@ export default function Home() {
           </div>
         </footer>
       </div>
-
-      {/* 3. Authentication Modal (Sign In / Sign In with Google) */}
-      {authModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-xs">
-                  AI
-                </div>
-                <h3 className="font-bold text-sm text-slate-900">Sign in to AI Chatbot</h3>
-              </div>
-              <button
-                onClick={() => setAuthModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <p className="text-xs text-slate-500 text-center">
-                Sign in to sync your conversations, save chat history, and customize your experience.
-              </p>
-
-              {/* 1. Continue with Google Button */}
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={authLoading}
-                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium text-xs border border-slate-300 hover:border-slate-400 transition-all shadow-2xs disabled:opacity-50"
-              >
-                <GoogleIcon className="w-4 h-4 flex-none" />
-                <span>Continue with Google</span>
-              </button>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-200" />
-                <span className="flex-shrink mx-3 text-[11px] text-slate-400 uppercase">
-                  or sign in with email
-                </span>
-                <div className="flex-grow border-t border-slate-200" />
-              </div>
-
-              {/* 2. Email Sign In Form */}
-              <form onSubmit={handleEmailSignIn} className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    value={authName}
-                    onChange={(e) => setAuthName(e.target.value)}
-                    placeholder="Abdi Naasir"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                    Email address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    placeholder="cnaasirm60@gmail.com"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={authLoading || !authEmail.trim()}
-                  className="w-full bg-rose-500 hover:bg-rose-600 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
-                >
-                  {authLoading ? 'Signing in...' : 'Sign In with Email'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
