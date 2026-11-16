@@ -130,7 +130,10 @@ async function generateNaturalConversation(
   return "I'm here to assist you! Feel free to ask me anything or use any of our 4 tools.";
 }
 
-export async function processUserMessage(message: string): Promise<ChatResponse> {
+export async function processUserMessage(
+  message: string,
+  conversationId?: string
+): Promise<ChatResponse> {
   const lower = message.toLowerCase().trim();
   const toolCalls: ToolCallExecution[] = [];
   let responseText = '';
@@ -138,6 +141,7 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
   let history: Array<{ role: string; content: string }> = [];
   try {
     const dbHistory = await prisma.conversationMessage.findMany({
+      where: conversationId ? { conversationId } : undefined,
       orderBy: { createdAt: 'desc' },
       take: 6,
     });
@@ -330,6 +334,7 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
   try {
     await prisma.conversationMessage.create({
       data: {
+        conversationId,
         role: 'user',
         content: message,
       },
@@ -337,6 +342,7 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
 
     await prisma.conversationMessage.create({
       data: {
+        conversationId,
         role: 'assistant',
         content: responseText,
         toolCalls: toolCalls.length > 0 ? (toolCalls as any) : undefined,
