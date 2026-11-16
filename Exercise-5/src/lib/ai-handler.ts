@@ -1,10 +1,11 @@
 import { executeDatabaseQuery } from './db-tool';
 import { searchMovieTool } from './movie-tool';
 import { fetchJokeTool } from './joke-tool';
+import { generateImageTool } from './image-tool';
 import { prisma } from './prisma';
 
 export interface ToolCallExecution {
-  toolName: 'DatabaseChatTool' | 'MovieDatabaseTool' | 'DadJokesTool';
+  toolName: 'DatabaseChatTool' | 'MovieDatabaseTool' | 'DadJokesTool' | 'ImageGeneratorTool';
   args: any;
   result: any;
 }
@@ -26,7 +27,6 @@ async function generateNaturalConversation(
   prompt: string,
   history: Array<{ role: string; content: string }>
 ): Promise<string> {
-  // 1. Try OpenRouter Free Models (NVIDIA Nemotron / Auto-free router)
   if (OPENROUTER_API_KEY) {
     try {
       const messages = [
@@ -34,11 +34,12 @@ async function generateNaturalConversation(
           role: 'system',
           content:
             'You are a friendly, intelligent AI assistant named "AI Chatbot". ' +
-            'You can speak both English and Somali fluently and warmly. ' +
-            'You have 3 specialized tools: ' +
+            'You speak both English and Somali fluently and warmly. ' +
+            'You have 4 specialized tools: ' +
             '1. Database Chat Tool (Neon PostgreSQL queries). ' +
             '2. Movie Database Tool (OMDb film search). ' +
             '3. Dad Jokes Tool (entertaining jokes with live voting). ' +
+            '4. AI Image Generator Tool (creates high-resolution images from text prompts). ' +
             'Respond warmly, helpfully, and concisely.',
         },
         ...history.slice(-6).map((m) => ({
@@ -75,7 +76,7 @@ async function generateNaturalConversation(
     }
   }
 
-  // 2. Fallback to Google Gemini
+  // Fallback to Google Gemini
   if (GEMINI_API_KEY) {
     try {
       const formattedContents = history.slice(-6).map((m) => ({
@@ -97,10 +98,7 @@ async function generateNaturalConversation(
             system_instruction: {
               parts: [
                 {
-                  text:
-                    'You are a friendly, intelligent AI assistant. ' +
-                    'You can speak both English and Somali fluently. ' +
-                    'Be warm, helpful, and natural.',
+                  text: 'You are a friendly, intelligent AI assistant. You speak both English and Somali fluently.',
                 },
               ],
             },
@@ -125,15 +123,11 @@ async function generateNaturalConversation(
     }
   }
 
-  // 3. Graceful fallback
   const p = prompt.toLowerCase();
   if (p.includes('hi') || p.includes('hello') || p.includes('hey') || p.includes('assalamu')) {
-    return 'Hello! 👋 Great to meet you! How can I help you today? Feel free to chat with me or ask about movies, database queries, and jokes.';
+    return 'Hello! 👋 Great to meet you! How can I help you today? Feel free to ask me to generate images, search movies, query the database, or tell you a joke!';
   }
-  if (p.includes('want to talk') || p.includes('talking to you') || p.includes('chat')) {
-    return "I'm right here and happy to chat with you! 😊 What's on your mind?";
-  }
-  return "I'm here to assist you! Feel free to ask me anything, or explore our database, movies, and jokes tools.";
+  return "I'm here to assist you! Feel free to ask me anything or use any of our 4 tools.";
 }
 
 export async function processUserMessage(message: string): Promise<ChatResponse> {
@@ -141,7 +135,6 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
   const toolCalls: ToolCallExecution[] = [];
   let responseText = '';
 
-  // 1. Fetch recent conversation history from DB for context
   let history: Array<{ role: string; content: string }> = [];
   try {
     const dbHistory = await prisma.conversationMessage.findMany({
@@ -151,10 +144,56 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
     history = dbHistory.reverse().map((h) => ({ role: h.role, content: h.content }));
   } catch (e) {}
 
-  // 2. Identify which tool to call based on user input
-
-  // A. Dad Jokes Tool
+  // 1. Tool A: AI Image Generator Tool (Text to Image)
   if (
+    lower.includes('generate image') ||
+    lower.includes('create image') ||
+    lower.includes('draw') ||
+    lower.includes('make an image') ||
+    lower.includes('make a picture') ||
+    lower.includes('sawir ii samee') ||
+    lower.includes('sawir') ||
+    lower.startsWith('image of') ||
+    lower.startsWith('picture of')
+  ) {
+    let prompt = message
+      .replace(/generate an image of/i, '')
+      .replace(/generate image of/i, '')
+      .replace(/generate image/i, '')
+      .replace(/create an image of/i, '')
+      .replace(/create image of/i, '')
+      .replace(/create image/i, '')
+      .replace(/make a picture of/i, '')
+      .replace(/make an image of/i, '')
+      .replace(/draw an image of/i, '')
+      .replace(/draw a picture of/i, '')
+      .replace(/draw/i, '')
+      .replace(/sawir ii samee/i, '')
+      .replace(/sawir/i, '')
+      .replace(/picture of/i, '')
+      .replace(/image of/i, '')
+      .trim();
+
+    if (!prompt) {
+      prompt = 'A beautiful futuristic cyberpunk city with flying cars';
+    }
+
+    const imageRes = await generateImageTool({ prompt });
+    toolCalls.push({
+      toolName: 'ImageGeneratorTool',
+      args: { prompt },
+      result: imageRes,
+    });
+
+    if (imageRes.success) {
+      responseText = `I have generated the image for: **"${prompt}"** using high-resolution Flux AI! 🎨✨`;
+    } else {
+      responseText = `Could not generate image: ${imageRes.error}`;
+    }
+  }
+
+  // 2. Tool B: Dad Jokes Tool
+  else if (
     lower.includes('joke') ||
     lower.includes('kaftan') ||
     lower.includes('funny') ||
@@ -194,7 +233,7 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
     }
   }
 
-  // B. Movie Database Tool (OMDb search, movie details, cast, poster)
+  // 3. Tool C: Movie Database Tool
   else if (
     (lower.includes('movie') ||
       lower.includes('film') ||
@@ -247,7 +286,7 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
     }
   }
 
-  // C. Database Chat Tool (Text to SQL for Movies, Users, Reviews)
+  // 4. Tool D: Database Chat Tool (Text to SQL)
   else if (
     (lower.includes('show') ||
       lower.includes('find') ||
@@ -278,7 +317,7 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
     }
   }
 
-  // D. General Natural Conversation (Powered by OpenRouter Free Models & Gemini)
+  // 5. Natural Chat (General Conversation)
   else {
     responseText = await generateNaturalConversation(message, history);
   }

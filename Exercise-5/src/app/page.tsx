@@ -11,11 +11,15 @@ import {
   ThumbsUp,
   ThumbsDown,
   Clock,
-  MessageSquare,
+  Bot,
+  Image as ImageIcon,
+  Download,
+  ExternalLink,
+  Plus,
 } from 'lucide-react';
 
 interface ToolCall {
-  toolName: 'DatabaseChatTool' | 'MovieDatabaseTool' | 'DadJokesTool';
+  toolName: 'DatabaseChatTool' | 'MovieDatabaseTool' | 'DadJokesTool' | 'ImageGeneratorTool';
   args: any;
   result: any;
 }
@@ -36,12 +40,12 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const quickPrompts = [
+    { label: '🎨 Generate image of a futuristic flying car', tool: 'image' },
     { label: 'Show me all sci-fi movies', tool: 'db' },
-    { label: 'Find users over 25', tool: 'db' },
-    { label: 'Get movies with rating above 8.5', tool: 'db' },
-    { label: 'Count total movies by genre', tool: 'db' },
     { label: 'Search movie Inception', tool: 'movie' },
     { label: 'Tell me a programming joke', tool: 'joke' },
+    { label: 'Find users over 25', tool: 'db' },
+    { label: 'Count total movies by genre', tool: 'db' },
   ];
 
   const scrollToBottom = () => {
@@ -136,75 +140,77 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-slate-50 text-slate-900">
-      {/* Top Navbar */}
-      <header className="flex-none border-b border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 shadow-sm">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <div className="flex flex-col h-screen max-h-screen bg-slate-50/70 text-slate-900 font-sans">
+      {/* Top Header - Styled like course screenshot */}
+      <header className="flex-none border-b border-slate-200 bg-white/95 backdrop-blur px-4 py-3 sm:px-8">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 flex items-center justify-center shadow-md shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+              AI
             </div>
             <div>
-              <h1 className="font-semibold text-lg text-slate-900 leading-tight">
-                AI Chatbot
+              <h1 className="font-bold text-base text-slate-900 leading-none">
+                New Conversation
               </h1>
+              <p className="text-xs text-rose-500 font-medium mt-1">
+                Chat with AI Assistant
+              </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Neon DB & API Active
-            </div>
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 text-xs bg-white hover:bg-slate-100 text-slate-700 px-3.5 py-1.5 rounded-lg border border-slate-300 font-medium transition-colors shadow-sm"
-              title="Clear conversation"
+              className="text-xs border border-rose-200 text-rose-600 hover:bg-rose-50 px-4 py-1.5 rounded-full font-medium transition-colors shadow-2xs flex items-center gap-1.5"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Reset</span>
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Chat</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Chat Area */}
-      <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {messages.length === 0 ? (
-            /* Clean Minimalist Empty State (Short English message) */
-            <div className="h-full min-h-[55vh] flex flex-col items-center justify-center text-center p-6 text-slate-400">
-              <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-3 shadow-sm">
-                <MessageSquare className="w-6 h-6 text-indigo-500" />
+            /* Empty State - Exact match of course video screenshot */
+            <div className="h-full min-h-[55vh] flex flex-col items-center justify-center text-center p-6">
+              <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center mb-4 shadow-sm text-rose-500">
+                <Bot className="w-8 h-8" />
               </div>
-              <p className="text-base font-medium text-slate-700">How can I help you today?</p>
+              <h2 className="text-xl font-bold text-slate-800">Start a conversation</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Ask me anything! I can query databases, search movies, tell jokes, or generate images.
+              </p>
             </div>
           ) : (
             messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex flex-col ${
-                  msg.role === 'user' ? 'items-end' : 'items-start'
+                className={`flex items-start gap-3 ${
+                  msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
                 }`}
               >
-                <div className="flex items-center gap-2 mb-1.5 px-1 text-xs text-slate-500">
-                  {msg.role === 'user' ? (
-                    <span className="font-medium">You</span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-indigo-600 font-medium">
-                      <Sparkles className="w-3.5 h-3.5" /> AI Chatbot
-                    </span>
-                  )}
-                </div>
+                {/* Avatar */}
+                {msg.role === 'user' ? (
+                  <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs font-semibold flex-none shadow-sm">
+                    U
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center flex-none shadow-2xs">
+                    <Bot className="w-4 h-4" />
+                  </div>
+                )}
 
                 {/* Message Bubble */}
                 <div
-                  className={`rounded-2xl px-4 py-3.5 max-w-[92%] sm:max-w-[85%] text-sm leading-relaxed ${
+                  className={`rounded-2xl px-5 py-3.5 max-w-[90%] sm:max-w-[80%] text-sm leading-relaxed shadow-sm ${
                     msg.role === 'user'
-                      ? 'bg-indigo-600 text-white rounded-tr-none shadow-md shadow-indigo-600/10'
+                      ? 'bg-rose-500 text-white rounded-tr-none'
                       : msg.error
-                      ? 'bg-rose-50 border border-rose-200 text-rose-800 rounded-tl-none shadow-sm'
-                      : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-sm'
+                      ? 'bg-red-50 border border-red-200 text-red-800 rounded-tl-none'
+                      : 'bg-white border border-slate-200/90 text-slate-800 rounded-tl-none'
                   }`}
                 >
                   <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -214,7 +220,50 @@ export default function Home() {
                     <div className="mt-4 space-y-4">
                       {msg.toolCalls.map((tc, idx) => (
                         <div key={idx} className="mt-2">
-                          {/* 1. Database Result Table */}
+                          {/* 1. AI Image Generator Result Card */}
+                          {tc.toolName === 'ImageGeneratorTool' && tc.result.imageUrl && (
+                            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                              <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+                                <span className="font-semibold text-rose-600 flex items-center gap-1.5">
+                                  <ImageIcon className="w-4 h-4" /> Generated with Flux AI
+                                </span>
+                                <a
+                                  href={tc.result.imageUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-slate-500 hover:text-rose-600 flex items-center gap-1"
+                                >
+                                  <span>Full Resolution</span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                              <div className="relative group bg-slate-950 flex items-center justify-center max-h-[460px] overflow-hidden">
+                                <img
+                                  src={tc.result.imageUrl}
+                                  alt={tc.result.prompt}
+                                  className="w-full object-contain max-h-[460px] transition-transform duration-300 group-hover:scale-[1.01]"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="p-3 bg-white flex items-center justify-between gap-3 text-xs border-t border-slate-100">
+                                <p className="text-slate-600 italic truncate flex-1 font-medium">
+                                  &quot;{tc.result.prompt}&quot;
+                                </p>
+                                <a
+                                  href={tc.result.imageUrl}
+                                  download={`ai-image-${Date.now()}.jpg`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition-colors shadow-2xs flex-none"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                  <span>Download</span>
+                                </a>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 2. Database Result Table */}
                           {tc.toolName === 'DatabaseChatTool' && (
                             <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                               <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 text-xs text-slate-700">
@@ -244,15 +293,9 @@ export default function Home() {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                       {tc.result.data.map((row: any, rIdx: number) => (
-                                        <tr
-                                          key={rIdx}
-                                          className="hover:bg-slate-50 transition-colors"
-                                        >
+                                        <tr key={rIdx} className="hover:bg-slate-50 transition-colors">
                                           {tc.result.columns?.map((col: string) => (
-                                            <td
-                                              key={col}
-                                              className="px-3.5 py-2 text-slate-700 whitespace-nowrap"
-                                            >
+                                            <td key={col} className="px-3.5 py-2 text-slate-700 whitespace-nowrap">
                                               {typeof row[col] === 'object' && row[col] !== null
                                                 ? JSON.stringify(row[col])
                                                 : String(row[col] ?? '')}
@@ -271,7 +314,7 @@ export default function Home() {
                             </div>
                           )}
 
-                          {/* 2. Movie Card with Poster */}
+                          {/* 3. Movie Card with Poster */}
                           {tc.toolName === 'MovieDatabaseTool' && tc.result.movie && (
                             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm flex flex-col sm:flex-row gap-4">
                               {tc.result.movie.poster ? (
@@ -296,7 +339,7 @@ export default function Home() {
                                         ({tc.result.movie.year})
                                       </span>
                                     </h3>
-                                    <p className="text-xs text-indigo-600 font-medium">
+                                    <p className="text-xs text-rose-500 font-medium">
                                       {tc.result.movie.genre} • {tc.result.movie.runtime}
                                     </p>
                                   </div>
@@ -319,16 +362,13 @@ export default function Home() {
 
                                 <div className="text-xs text-slate-500 space-y-0.5">
                                   <div>
-                                    <span className="text-slate-400 font-medium">Director:</span>{' '}
-                                    {tc.result.movie.director}
+                                    <span className="text-slate-400 font-medium">Director:</span> {tc.result.movie.director}
                                   </div>
                                   <div>
-                                    <span className="text-slate-400 font-medium">Cast:</span>{' '}
-                                    {tc.result.movie.actors}
+                                    <span className="text-slate-400 font-medium">Cast:</span> {tc.result.movie.actors}
                                   </div>
                                 </div>
 
-                                {/* Ratings Badges */}
                                 {tc.result.movie.ratings?.length > 0 && (
                                   <div className="flex flex-wrap gap-2 pt-1">
                                     {tc.result.movie.ratings.map((r: any, rIdx: number) => (
@@ -341,49 +381,27 @@ export default function Home() {
                                     ))}
                                   </div>
                                 )}
-
-                                {/* Recommendations Chips */}
-                                {tc.result.movie.recommendations?.length > 0 && (
-                                  <div className="pt-2 border-t border-slate-100">
-                                    <span className="text-[11px] text-slate-500 block mb-1">
-                                      Recommended Similar Movies:
-                                    </span>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {tc.result.movie.recommendations.map((rec: any, rIdx: number) => (
-                                        <button
-                                          key={rIdx}
-                                          onClick={() => handleSendMessage(`Search movie ${rec.title}`)}
-                                          className="text-[11px] bg-slate-50 hover:bg-slate-100 text-indigo-700 border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors"
-                                        >
-                                          <span>{rec.title}</span>
-                                          <span className="text-slate-400">({rec.rating}★)</span>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           )}
 
-                          {/* 3. Styled Joke Card with Rating Buttons */}
+                          {/* 4. Styled Joke Card with Live Votes */}
                           {tc.toolName === 'DadJokesTool' && tc.result.joke && (
-                            <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/70 to-purple-50/40 p-4 shadow-sm space-y-3">
+                            <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 shadow-sm space-y-3">
                               <div className="flex items-center justify-between text-xs">
-                                <span className="flex items-center gap-1.5 text-indigo-700 font-semibold capitalize">
-                                  <Smile className="w-4 h-4 text-indigo-600" /> {tc.result.joke.category} Joke
+                                <span className="flex items-center gap-1.5 text-rose-600 font-semibold capitalize">
+                                  <Smile className="w-4 h-4" /> {tc.result.joke.category} Joke
                                 </span>
                                 <span className="text-[10px] text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200 font-medium">
                                   {tc.result.joke.source === 'api' ? 'icanhazdadjoke API' : 'Offline DB Cache'}
                                 </span>
                               </div>
 
-                              <p className="text-base text-slate-900 font-serif italic border-l-2 border-indigo-500 pl-3 py-1">
+                              <p className="text-base text-slate-900 font-serif italic border-l-2 border-rose-500 pl-3 py-1">
                                 &quot;{tc.result.joke.joke}&quot;
                               </p>
 
-                              {/* Live Rating System */}
-                              <div className="flex items-center justify-between pt-2 border-t border-indigo-100 text-xs">
+                              <div className="flex items-center justify-between pt-2 border-t border-rose-100 text-xs">
                                 <span className="text-slate-500">Did this make you laugh?</span>
                                 <div className="flex items-center gap-2">
                                   <button
@@ -395,11 +413,8 @@ export default function Home() {
                                     }`}
                                   >
                                     <ThumbsUp className="w-3.5 h-3.5 text-emerald-600" />
-                                    <span>
-                                      {(jokeVotes[tc.result.joke.id]?.up ?? tc.result.joke.votesUp)}
-                                    </span>
+                                    <span>{jokeVotes[tc.result.joke.id]?.up ?? tc.result.joke.votesUp}</span>
                                   </button>
-
                                   <button
                                     onClick={() => handleVote(tc.result.joke.id, 'down')}
                                     className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border transition-all ${
@@ -409,9 +424,7 @@ export default function Home() {
                                     }`}
                                   >
                                     <ThumbsDown className="w-3.5 h-3.5 text-rose-600" />
-                                    <span>
-                                      {(jokeVotes[tc.result.joke.id]?.down ?? tc.result.joke.votesDown)}
-                                    </span>
+                                    <span>{jokeVotes[tc.result.joke.id]?.down ?? tc.result.joke.votesDown}</span>
                                   </button>
                                 </div>
                               </div>
@@ -426,22 +439,17 @@ export default function Home() {
             ))
           )}
 
-          {/* Loading state indicator */}
+          {/* Loading indicator */}
           {loading && (
-            <div className="flex flex-col items-start space-y-1">
-              <span className="text-xs text-indigo-600 px-1 font-medium flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 animate-spin" /> Thinking...
-              </span>
-              <div className="bg-white border border-slate-200 shadow-sm rounded-2xl rounded-tl-none px-4 py-3 text-slate-500 text-sm flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"></span>
-                <span
-                  className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"
-                  style={{ animationDelay: '0.2s' }}
-                ></span>
-                <span
-                  className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"
-                  style={{ animationDelay: '0.4s' }}
-                ></span>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center flex-none">
+                <Bot className="w-4 h-4 animate-spin" />
+              </div>
+              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-none px-4 py-3 text-slate-500 text-sm flex items-center space-x-2 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-bounce"></span>
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                <span className="text-xs text-slate-400 ml-1">AI is thinking...</span>
               </div>
             </div>
           )}
@@ -450,8 +458,8 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Preset Suggestions & Input Section */}
-      <footer className="flex-none border-t border-slate-200 bg-white/90 backdrop-blur-md px-4 py-3 sm:px-6 shadow-sm">
+      {/* Footer / Input Bar - Matches course screenshot */}
+      <footer className="flex-none border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 sm:px-8 shadow-sm">
         <div className="max-w-4xl mx-auto space-y-3">
           {/* Quick Pill Buttons */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
@@ -461,36 +469,57 @@ export default function Home() {
                 key={idx}
                 onClick={() => handleSendMessage(p.label)}
                 disabled={loading}
-                className="flex-none px-3 py-1.5 rounded-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-sm hover:border-indigo-400 transition-all flex items-center gap-1 font-medium"
+                className="flex-none px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-2xs hover:border-rose-400 transition-all flex items-center gap-1.5 font-medium"
               >
-                {p.tool === 'db' && <Database className="w-3 h-3 text-emerald-600" />}
-                {p.tool === 'movie' && <Film className="w-3 h-3 text-sky-600" />}
-                {p.tool === 'joke' && <Smile className="w-3 h-3 text-amber-600" />}
+                {p.tool === 'image' && <ImageIcon className="w-3.5 h-3.5 text-rose-500" />}
+                {p.tool === 'db' && <Database className="w-3.5 h-3.5 text-emerald-600" />}
+                {p.tool === 'movie' && <Film className="w-3.5 h-3.5 text-sky-600" />}
+                {p.tool === 'joke' && <Smile className="w-3.5 h-3.5 text-amber-500" />}
                 <span>{p.label}</span>
               </button>
             ))}
           </div>
 
-          {/* Input Box */}
+          {/* Input Box matching the screenshot */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2.5"
           >
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask anything, query database, or search movies..."
-              disabled={loading}
-              className="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:opacity-50 shadow-sm"
-            />
+            {/* User Avatar */}
+            <div className="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-xs flex-none shadow-2xs">
+              N
+            </div>
+
+            {/* Plus button */}
+            <button
+              type="button"
+              onClick={() => handleSendMessage('Generate image of a cute kitten playing with a ball')}
+              title="Quick image generator"
+              className="w-8 h-8 rounded-full border border-slate-300 text-slate-500 hover:text-rose-600 hover:border-rose-300 flex items-center justify-center flex-none transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+
+            {/* Text Input */}
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message..."
+                disabled={loading}
+                className="w-full bg-white border border-rose-300 rounded-full px-5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all shadow-2xs disabled:opacity-50"
+              />
+            </div>
+
+            {/* Send button */}
             <button
               type="submit"
               disabled={!input.trim() || loading}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-200 disabled:text-slate-400 text-white p-2.5 rounded-xl font-medium transition-all shadow-md shadow-indigo-600/20 disabled:shadow-none flex-none"
+              className="w-10 h-10 rounded-full bg-rose-500 hover:bg-rose-600 disabled:bg-slate-200 disabled:text-slate-400 text-white flex items-center justify-center transition-all shadow-sm flex-none disabled:shadow-none"
             >
               <Send className="w-4 h-4" />
             </button>
