@@ -186,7 +186,11 @@ export async function processUserMessage(message: string): Promise<ChatResponse>
     });
 
     if (imageRes.success) {
-      responseText = `I have generated the image for: **"${prompt}"** using high-resolution Flux AI! 🎨✨`;
+      if (lower.includes('sawir') || lower.includes('abuur')) {
+        responseText = `Waa kan sawirkii aad codsatay: **"${prompt}"**! Waxaan u turjumay af-Ingiriis si matoorka Flux AI uu u fahmo una soo saaro sawir tayo sare leh. 🎨✨`;
+      } else {
+        responseText = `I have generated the image for: **"${prompt}"** using high-resolution Flux AI! 🎨✨`;
+      }
     } else {
       responseText = `Could not generate image: ${imageRes.error}`;
     }

@@ -246,9 +246,16 @@ export default function Home() {
                                 />
                               </div>
                               <div className="p-3 bg-white flex items-center justify-between gap-3 text-xs border-t border-slate-100">
-                                <p className="text-slate-600 italic truncate flex-1 font-medium">
-                                  &quot;{tc.result.prompt}&quot;
-                                </p>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-slate-800 font-semibold truncate">
+                                    &quot;{tc.result.userPrompt || tc.result.prompt}&quot;
+                                  </p>
+                                  {tc.result.enhancedPrompt && (
+                                    <p className="text-[11px] text-slate-400 truncate italic">
+                                      Flux English: {tc.result.enhancedPrompt}
+                                    </p>
+                                  )}
+                                </div>
                                 <a
                                   href={tc.result.imageUrl}
                                   download={`ai-image-${Date.now()}.jpg`}
