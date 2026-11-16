@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 
-// GET all conversations
+// GET all conversations for current user or guest
 export async function GET() {
   try {
+    const user = await getCurrentUser();
+
+    const whereClause = user ? {
+      OR: [
+        { userId: user.id },
+        { userId: null },
+      ],
+    } : {};
+
     const conversations = await prisma.conversation.findMany({
+      where: whereClause,
       orderBy: { updatedAt: 'desc' },
-      take: 30,
+      take: 50,
       include: {
         messages: {
           take: 1,
@@ -27,9 +38,13 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     const title = body.title || 'New Chat';
+    const user = await getCurrentUser();
 
     const conversation = await prisma.conversation.create({
-      data: { title },
+      data: {
+        title,
+        userId: user ? user.id : null,
+      },
     });
 
     return NextResponse.json({ success: true, conversation });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { processUserMessage } from '@/lib/ai-handler';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
@@ -19,6 +20,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Message cannot be empty.' }, { status: 400 });
     }
 
+    const currentUser = await getCurrentUser();
+
     // Ensure conversation exists or create one
     let conversation;
     if (conversationId) {
@@ -28,14 +31,20 @@ export async function POST(req: Request) {
     if (!conversation) {
       const title = prompt.length > 30 ? `${prompt.slice(0, 28)}...` : prompt;
       conversation = await prisma.conversation.create({
-        data: { title },
+        data: {
+          title,
+          userId: currentUser ? currentUser.id : null,
+        },
       });
       conversationId = conversation.id;
     } else {
-      // Update updatedAt timestamp
+      // Update updatedAt timestamp and link user if unlinked
       await prisma.conversation.update({
         where: { id: conversation.id },
-        data: { updatedAt: new Date() },
+        data: {
+          updatedAt: new Date(),
+          ...(currentUser && !conversation.userId ? { userId: currentUser.id } : {}),
+        },
       });
     }
 

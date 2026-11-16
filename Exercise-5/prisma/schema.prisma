@@ -53,14 +53,46 @@ model Review {
   @@index([user_id])
 }
 
+model AuthUser {
+  id            String         @id @default(cuid())
+  name          String?
+  email         String         @unique
+  image         String?
+  provider      String         @default("google") // 'google' | 'credentials'
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  conversations Conversation[]
+  sessions      Session[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
 model Conversation {
   id        String                @id @default(cuid())
   title     String                @default("New Chat")
+  userId    String?
   createdAt DateTime              @default(now())
   updatedAt DateTime              @updatedAt
   messages  ConversationMessage[]
 
+  user      AuthUser?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([createdAt])
+  @@index([userId])
 }
 
 model ConversationMessage {
