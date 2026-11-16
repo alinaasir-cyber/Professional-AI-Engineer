@@ -28,6 +28,10 @@ import {
   CheckCircle2,
   ArrowRight,
   Loader2,
+  Eye,
+  EyeOff,
+  X,
+  UserCheck,
 } from 'lucide-react';
 
 function GoogleIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -81,6 +85,33 @@ interface AuthUser {
   provider?: string;
 }
 
+const GOOGLE_SAVED_ACCOUNTS = [
+  {
+    name: 'Abdi Naasir',
+    email: 'cnaasirm60@gmail.com',
+    initial: 'A',
+    bgColor: 'bg-blue-600',
+  },
+  {
+    name: 'Qaaas',
+    email: 'qaas978@gmail.com',
+    initial: 'Q',
+    bgColor: 'bg-orange-600',
+  },
+  {
+    name: 'Ali Naasir',
+    email: 'leyziboy38@gmail.com',
+    initial: 'A',
+    bgColor: 'bg-emerald-600',
+  },
+  {
+    name: 'Rodri Naasir',
+    email: 'naasirrodri@gmail.com',
+    initial: 'R',
+    bgColor: 'bg-amber-600',
+  },
+];
+
 export default function Home() {
   // Authentication & Initial State
   const [authChecking, setAuthChecking] = useState(true);
@@ -88,8 +119,16 @@ export default function Home() {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [authEmail, setAuthEmail] = useState('');
   const [authName, setAuthName] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // Google Account Chooser Modal
+  const [googleChooserOpen, setGoogleChooserOpen] = useState(false);
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
+  const [customGoogleName, setCustomGoogleName] = useState('');
+  const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
 
   // Chat State
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -127,7 +166,7 @@ export default function Home() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleSelectGoogleAccount = async (name: string, email: string) => {
     setAuthLoading(true);
     setAuthError(null);
     try {
@@ -136,14 +175,15 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: 'google',
-          name: 'Abdi Naasir',
-          email: 'cnaasirm60@gmail.com',
-          image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
+          name,
+          email,
+          image: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0284c7&color=fff&size=96`,
         }),
       });
       const data = await res.json();
       if (data.success && data.user) {
         setCurrentUser(data.user);
+        setGoogleChooserOpen(false);
         fetchConversations();
       } else {
         setAuthError(data.error || 'Google sign in failed');
@@ -161,29 +201,41 @@ export default function Home() {
       setAuthError('Please enter your email address.');
       return;
     }
+    if (!authPassword) {
+      setAuthError('Please enter your password.');
+      return;
+    }
+    if (authMode === 'signup' && authPassword.length < 4) {
+      setAuthError('Password must be at least 4 characters long.');
+      return;
+    }
+
     setAuthLoading(true);
     setAuthError(null);
+
+    const endpoint = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/signin';
+    const payload = authMode === 'signup'
+      ? { email: authEmail.trim(), name: authName.trim() || authEmail.split('@')[0], password: authPassword }
+      : { provider: 'credentials', email: authEmail.trim(), password: authPassword };
+
     try {
-      const res = await fetch('/api/auth/signin', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: 'credentials',
-          name: authName.trim() || authEmail.split('@')[0],
-          email: authEmail.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success && data.user) {
         setCurrentUser(data.user);
         setAuthEmail('');
         setAuthName('');
+        setAuthPassword('');
         fetchConversations();
       } else {
-        setAuthError(data.error || 'Failed to authenticate');
+        setAuthError(data.error || 'Authentication failed. Please check your credentials.');
       }
     } catch (err: any) {
-      setAuthError(err.message || 'Network error');
+      setAuthError(err.message || 'Network error. Please try again.');
     } finally {
       setAuthLoading(false);
     }
@@ -380,7 +432,7 @@ export default function Home() {
   }
 
   // -------------------------------------------------------------
-  // VIEW 2: Clean, Centered Registration & Sign-In Page in English
+  // VIEW 2: Clean, Centered Registration & Sign-In Page (English)
   // Visible ONLY when user is NOT logged in!
   // -------------------------------------------------------------
   if (!currentUser) {
@@ -389,17 +441,9 @@ export default function Home() {
         {/* Subtle Decorative Ambient Background Blobs */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-sky-300/15 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Brand Header */}
-        <div className="flex items-center gap-2.5 mb-6">
-          <div className="w-10 h-10 rounded-2xl bg-sky-500 text-white flex items-center justify-center font-bold text-base shadow-sm">
-            AI
-          </div>
-          <span className="font-extrabold text-xl text-slate-900 tracking-tight">AI Tools Studio</span>
-        </div>
-
-        {/* Centered Registration / Sign-In Card */}
+        {/* Centered Registration / Sign-In Card (NO AI Tools Studio text above) */}
         <div className="w-full max-w-md bg-white border border-sky-100 rounded-3xl p-7 sm:p-9 shadow-xl shadow-sky-100/60 relative z-10">
-          {/* Card Header & Tabs */}
+          {/* Card Header */}
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
               {authMode === 'signin' ? 'Welcome Back' : 'Create an Account'}
@@ -446,7 +490,7 @@ export default function Home() {
           <div className="space-y-4">
             {/* 1. Continue with Google Button */}
             <button
-              onClick={handleGoogleSignIn}
+              onClick={() => setGoogleChooserOpen(true)}
               disabled={authLoading}
               className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium text-xs border border-slate-200 hover:border-slate-300 transition-all shadow-2xs hover:shadow-xs group disabled:opacity-50"
             >
@@ -463,7 +507,7 @@ export default function Home() {
               <div className="flex-grow border-t border-slate-100" />
             </div>
 
-            {/* 2. Email & Name Form */}
+            {/* 2. Email, Name & Password Form */}
             <form onSubmit={handleEmailAuth} className="space-y-3.5">
               {authMode === 'signup' && (
                 <div>
@@ -494,9 +538,34 @@ export default function Home() {
                 />
               </div>
 
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-semibold text-slate-700">
+                    Password
+                  </label>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-3.5 py-2.5 pr-10 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="submit"
-                disabled={authLoading || !authEmail.trim()}
+                disabled={authLoading || !authEmail.trim() || !authPassword}
                 className="w-full bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5"
               >
                 {authLoading ? (
@@ -512,18 +581,6 @@ export default function Home() {
                 )}
               </button>
             </form>
-
-            {/* 3. Fast Demo Login */}
-            <div className="pt-2 border-t border-slate-100">
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={authLoading}
-                className="w-full flex items-center justify-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 bg-sky-50/80 hover:bg-sky-100/80 py-2 rounded-xl font-medium transition-colors border border-sky-100"
-              >
-                <Zap className="w-3.5 h-3.5" />
-                <span>Quick Login: <b>Abdi Naasir</b></span>
-              </button>
-            </div>
           </div>
 
           {/* Card Footer Switcher */}
@@ -550,12 +607,119 @@ export default function Home() {
               </span>
             )}
           </div>
-
-          <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Secure session • Neon PostgreSQL</span>
-          </div>
         </div>
+
+        {/* ----------------------------------------------------------- */}
+        {/* GOOGLE "CHOOSE AN ACCOUNT" MODAL (Matching User Screenshot) */}
+        {/* ----------------------------------------------------------- */}
+        {googleChooserOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-[#1f1f1f] text-slate-100 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-800 animate-in fade-in zoom-in-95 duration-150">
+              {/* Google Modal Header */}
+              <div className="p-6 pb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <GoogleIcon className="w-6 h-6" />
+                  <button
+                    onClick={() => {
+                      setGoogleChooserOpen(false);
+                      setShowCustomGoogleInput(false);
+                    }}
+                    className="text-slate-400 hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-800 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <h3 className="text-2xl font-normal text-slate-100">Choose an account</h3>
+                <p className="text-xs text-slate-400 mt-1">to continue to AI Chatbot Studio</p>
+              </div>
+
+              {/* Accounts List (Google style) */}
+              <div className="divide-y divide-slate-800/80">
+                {GOOGLE_SAVED_ACCOUNTS.map((acc, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSelectGoogleAccount(acc.name, acc.email)}
+                    disabled={authLoading}
+                    className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-slate-800/60 transition-colors text-left group"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className={`w-9 h-9 rounded-full ${acc.bgColor} text-white flex items-center justify-center font-bold text-sm shadow-xs flex-none`}>
+                        {acc.initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-200 group-hover:text-white truncate">
+                          {acc.name}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate">{acc.email}</p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-normal pl-2 flex-none">
+                      Signed in
+                    </span>
+                  </button>
+                ))}
+
+                {/* "Use another account" button */}
+                {!showCustomGoogleInput ? (
+                  <button
+                    onClick={() => setShowCustomGoogleInput(true)}
+                    className="w-full flex items-center gap-3.5 px-6 py-4 hover:bg-slate-800/60 transition-colors text-left"
+                  >
+                    <div className="w-9 h-9 rounded-full border border-slate-700 flex items-center justify-center text-slate-300">
+                      <UserIcon className="w-4 h-4" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-300 hover:text-white">
+                      Use another account
+                    </span>
+                  </button>
+                ) : (
+                  <div className="p-6 bg-slate-900/80 space-y-3">
+                    <p className="text-xs text-slate-400">Enter custom Google account:</p>
+                    <input
+                      type="text"
+                      placeholder="Name (e.g. Abdi Naasir)"
+                      value={customGoogleName}
+                      onChange={(e) => setCustomGoogleName(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs bg-[#2a2a2a] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-sky-500"
+                    />
+                    <input
+                      type="email"
+                      placeholder="email@gmail.com"
+                      value={customGoogleEmail}
+                      onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 text-xs bg-[#2a2a2a] border border-slate-700 text-white rounded-xl focus:outline-none focus:border-sky-500"
+                    />
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          if (customGoogleEmail.trim()) {
+                            handleSelectGoogleAccount(customGoogleName.trim() || customGoogleEmail.split('@')[0], customGoogleEmail.trim());
+                          }
+                        }}
+                        disabled={!customGoogleEmail.trim() || authLoading}
+                        className="flex-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white py-2 rounded-xl text-xs font-semibold"
+                      >
+                        Sign in
+                      </button>
+                      <button
+                        onClick={() => setShowCustomGoogleInput(false)}
+                        className="px-4 py-2 border border-slate-700 text-slate-400 hover:text-white rounded-xl text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Google Modal Footer */}
+              <div className="p-4 px-6 border-t border-slate-800 text-[11px] text-slate-500 flex items-center justify-between">
+                <span>Google OAuth 2.0</span>
+                <span>Privacy • Terms</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

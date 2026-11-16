@@ -57,6 +57,7 @@ model AuthUser {
   id            String         @id @default(cuid())
   name          String?
   email         String         @unique
+  password      String?
   image         String?
   provider      String         @default("google") // 'google' | 'credentials'
   createdAt     DateTime       @default(now())
