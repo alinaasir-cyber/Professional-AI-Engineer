@@ -13,10 +13,13 @@ interface ProcessedRecordItem extends RecordItem {
   requiresReview: boolean;
 }
 
-// 2.1b Multi-Step: step.run() - Three Steps
+// 2.1b Multi-Step: step.run() - Three Steps (Inngest v4 compatible)
 export const dataProcessor = inngest.createFunction(
-  { id: "data-processor", name: "Multi-step Data Processor" },
-  { event: "data/process" },
+  {
+    id: "data-processor",
+    name: "Multi-step Data Processor",
+    triggers: [{ event: "data/process" }],
+  },
   async ({ event, step }) => {
     // Step 1: Fetch data
     const fetchedData = await step.run("fetch-data", async () => {

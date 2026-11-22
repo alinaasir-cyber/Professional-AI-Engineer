@@ -8,10 +8,13 @@ interface InitialRequest {
   requestedAt: string;
 }
 
-// 2.3 Wait for Event: step.waitForEvent() - Approval Workflow
+// 2.3 Wait for Event: step.waitForEvent() - Approval Workflow (Inngest v4 compatible)
 export const approvalWorkflow = inngest.createFunction(
-  { id: "approval-workflow", name: "Approval Workflow (Human-in-the-Loop)" },
-  { event: "approval/requested" },
+  {
+    id: "approval-workflow",
+    name: "Approval Workflow (Human-in-the-Loop)",
+    triggers: [{ event: "approval/requested" }],
+  },
   async ({ event, step }) => {
     const requestId: string = (event.data?.requestId as string) || `req_${Date.now()}`;
     const action: string = (event.data?.action as string) || "Release AI Model To Production";

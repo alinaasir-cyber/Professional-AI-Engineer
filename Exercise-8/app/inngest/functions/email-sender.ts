@@ -6,10 +6,13 @@ interface EmailDeliveryRecord {
   sentAt: string;
 }
 
-// 2.2 Delay Step: step.sleep() - Rate-Limited Email Sender
+// 2.2 Delay Step: step.sleep() - Rate-Limited Email Sender (Inngest v4 compatible)
 export const rateLimitedEmailSender = inngest.createFunction(
-  { id: "rate-limited-email-sender", name: "Rate-Limited Email Sender" },
-  { event: "email/send-batch" },
+  {
+    id: "rate-limited-email-sender",
+    name: "Rate-Limited Email Sender",
+    triggers: [{ event: "email/send-batch" }],
+  },
   async ({ event, step }) => {
     const emails: string[] = (event.data?.emails as string[]) || [
       "alice@example.com",
